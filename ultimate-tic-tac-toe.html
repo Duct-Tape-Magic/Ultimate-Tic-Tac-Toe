@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultimate Tic-Tac-Toe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Spline+Sans+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#efe6d6;
+    --paper-2:#e6dcc8;
+    --ink:#28241e;
+    --ink-soft:#6b6354;
+    --line:#cdbfa6;
+    --o:#1f7a6d;        /* circle player */
+    --o-soft:#1f7a6d22;
+    --x:#d1502e;        /* cross player */
+    --x-soft:#d1502e22;
+    --gold:#c79a3b;
+    --shadow:rgba(40,36,30,.18);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Spline Sans Mono',monospace;
+    background:
+      radial-gradient(circle at 18% 12%, #f6efe0 0%, transparent 55%),
+      radial-gradient(circle at 85% 88%, #e9dec9 0%, transparent 50%),
+      var(--paper);
+    color:var(--ink);
+    min-height:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:28px 16px 48px;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* subtle paper grain */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;opacity:.5;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");
+    mix-blend-mode:multiply;
+  }
+
+  header{text-align:center;margin-bottom:18px;position:relative;z-index:1}
+  h1{
+    font-family:'Bricolage Grotesque',sans-serif;
+    font-weight:800;
+    font-size:clamp(28px,6vw,46px);
+    letter-spacing:-.02em;
+    line-height:.95;
+  }
+  h1 .accent{color:var(--x)}
+  .tag{
+    font-size:12px;letter-spacing:.32em;text-transform:uppercase;
+    color:var(--ink-soft);margin-top:8px;
+  }
+
+  /* status bar */
+  .status{
+    display:flex;align-items:center;gap:14px;justify-content:center;
+    margin:6px 0 20px;min-height:40px;z-index:1;position:relative;
+  }
+  .turn{
+    display:flex;align-items:center;gap:10px;
+    font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:17px;
+    padding:8px 16px;border:1.5px solid var(--ink);border-radius:999px;
+    background:var(--paper);box-shadow:3px 3px 0 var(--shadow);
+    transition:.25s;
+  }
+  .turn .dot{width:16px;height:16px;border-radius:50%;}
+  .turn.o .dot{border:3px solid var(--o);background:transparent}
+  .turn.x .dot{background:var(--x);clip-path:polygon(20% 0,50% 30%,80% 0,100% 20%,70% 50%,100% 80%,80% 100%,50% 70%,20% 100%,0 80%,30% 50%,0 20%)}
+  .turn.win{border-color:var(--gold);box-shadow:3px 3px 0 var(--gold)}
+
+  /* big board */
+  .arena{position:relative;z-index:1}
+  .big{
+    --gap:10px;
+    display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap);
+    width:min(92vw,540px);aspect-ratio:1;
+    padding:var(--gap);
+    background:var(--paper-2);
+    border:2.5px solid var(--ink);
+    border-radius:14px;
+    box-shadow:8px 10px 0 var(--shadow);
+  }
+
+  .mini{
+    position:relative;
+    display:grid;grid-template-columns:repeat(3,1fr);gap:3px;
+    background:var(--line);
+    border-radius:8px;padding:3px;
+    transition:transform .2s, box-shadow .2s, filter .25s, opacity .25s;
+  }
+  .mini.playable{
+    box-shadow:0 0 0 3px var(--gold), 0 0 18px 2px #c79a3b66;
+    background:#d8c9ac;
+  }
+  .mini.dim{opacity:.45;filter:grayscale(.3)}
+  .mini.won-o{background:var(--o-soft)}
+  .mini.won-x{background:var(--x-soft)}
+
+  .cell{
+    background:var(--paper);
+    border:none;border-radius:4px;
+    aspect-ratio:1;width:100%;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;padding:14%;
+    transition:background .15s;
+    position:relative;
+  }
+  .cell:disabled{cursor:default}
+  .mini.playable .cell:not(:disabled):hover{background:#fff8ec}
+  .cell svg{width:100%;height:100%;display:block;overflow:visible}
+  .cell .stroke{fill:none;stroke-width:11;stroke-linecap:round;stroke-linejoin:round}
+  .cell.o .stroke{stroke:var(--o)}
+  .cell.x .stroke{stroke:var(--x)}
+
+  /* hover ghost preview */
+  .cell .ghost{opacity:0;transition:opacity .15s}
+  .mini.playable .cell:not(:disabled):hover .ghost{opacity:.28}
+
+  /* draw-in animation for the latest move */
+  .cell .stroke{stroke-dasharray:240;stroke-dashoffset:0}
+  .cell.animate .stroke{animation:draw .42s cubic-bezier(.6,.05,.3,1) forwards}
+  @keyframes draw{from{stroke-dashoffset:240}to{stroke-dashoffset:0}}
+
+  /* big winner overlay on a finished mini-board */
+  .mini .big-mark{
+    position:absolute;inset:8%;pointer-events:none;
+    display:flex;align-items:center;justify-content:center;
+    animation:pop .35s cubic-bezier(.34,1.56,.64,1);
+  }
+  .mini .big-mark svg{width:100%;height:100%}
+  .mini .big-mark .stroke{stroke-width:9;opacity:.85}
+  @keyframes pop{0%{transform:scale(.3);opacity:0}100%{transform:scale(1);opacity:1}}
+
+  /* end banner */
+  .banner{
+    margin-top:22px;text-align:center;z-index:1;position:relative;
+    min-height:28px;font-family:'Bricolage Grotesque',sans-serif;
+  }
+  .banner .result{font-size:24px;font-weight:800;letter-spacing:-.01em}
+  .banner .result.o{color:var(--o)}
+  .banner .result.x{color:var(--x)}
+  .banner .result.draw{color:var(--ink-soft)}
+
+  .controls{display:flex;gap:12px;margin-top:18px;z-index:1;position:relative}
+  button.ctrl{
+    font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:15px;
+    padding:10px 22px;border:2px solid var(--ink);border-radius:999px;
+    background:var(--paper);color:var(--ink);cursor:pointer;
+    box-shadow:3px 3px 0 var(--shadow);transition:transform .12s, box-shadow .12s;
+  }
+  button.ctrl:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+  button.ctrl:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+  button.ctrl:disabled{opacity:.4;cursor:default;transform:none;box-shadow:3px 3px 0 var(--shadow)}
+
+  .hint{margin-top:14px;font-size:12px;color:var(--ink-soft);max-width:520px;
+    text-align:center;line-height:1.6;z-index:1;position:relative}
+</style>
+</head>
+<body>
+  <header>
+    <h1>Ultimate <span class="accent">Tic-Tac-Toe</span></h1>
+    <div class="tag">nine boards · one war</div>
+  </header>
+
+  <div class="status">
+    <div class="turn o" id="turn"><span class="dot"></span><span id="turnLabel">Your move — O</span></div>
+  </div>
+
+  <div class="arena">
+    <div class="big" id="big"></div>
+  </div>
+
+  <div class="banner" id="banner"></div>
+
+  <div class="controls">
+    <button class="ctrl" id="undo" disabled>Undo</button>
+    <button class="ctrl" id="reset">New Game</button>
+  </div>
+
+  <p class="hint">
+    Click any square to place a mark. The cell you choose decides which board your
+    opponent must play in next (highlighted gold). If you're sent to a board that's
+    already finished, you may play in any open board.
+  </p>
+
+<script>
+const LINES=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+// SVG markup for marks
+function svgMark(type, cls){
+  if(type==='O'){
+    return `<svg viewBox="0 0 100 100" class="${cls}"><circle class="stroke" cx="50" cy="50" r="34"/></svg>`;
+  }
+  return `<svg viewBox="0 0 100 100" class="${cls}"><path class="stroke" d="M22 22 L78 78"/><path class="stroke" d="M78 22 L22 78"/></svg>`;
+}
+
+let state, history, lastMove;
+
+function freshState(){
+  return {
+    boards:Array.from({length:9},()=>Array(9).fill('')),
+    winners:Array(9).fill(''),   // '', 'O', 'X', or 'D' (draw)
+    player:'O',
+    active:null,                 // forced board index, or null = anywhere
+    gameWinner:null,             // '', 'O','X','D'
+    winLine:null
+  };
+}
+
+function clone(s){return JSON.parse(JSON.stringify(s));}
+
+function checkWin(cells){
+  for(const [a,b,c] of LINES){
+    if(cells[a] && cells[a]===cells[b] && cells[a]===cells[c]) return {who:cells[a],line:[a,b,c]};
+  }
+  return null;
+}
+function isFull(cells){return cells.every(c=>c!=='');}
+
+function isBoardPlayable(s,b){
+  if(s.gameWinner) return false;
+  if(s.winners[b]) return false;                 // already decided/full
+  if(s.active===null) return true;               // free move
+  return b===s.active;
+}
+
+function move(b,c){
+  if(!isBoardPlayable(state,b)) return;
+  if(state.boards[b][c]) return;
+
+  history.push(clone(state));
+
+  const p=state.player;
+  state.boards[b][c]=p;
+
+  // resolve the mini board
+  const w=checkWin(state.boards[b]);
+  if(w){ state.winners[b]=w.who; }
+  else if(isFull(state.boards[b])){ state.winners[b]='D'; }
+
+  // resolve the big board
+  const bw=checkWin(state.winners.map(x=>(x==='O'||x==='X')?x:''));
+  if(bw){ state.gameWinner=bw.who; state.winLine=bw.line; }
+  else if(state.winners.every(x=>x!=='')){ state.gameWinner='D'; }
+
+  // decide next active board: the cell index c, unless that board is finished
+  state.active = (state.winners[c] !== '') ? null : c;
+
+  state.player = p==='O'?'X':'O';
+  lastMove={b,c};
+  render();
+}
+
+function undo(){
+  if(!history.length) return;
+  state=history.pop();
+  lastMove=null;
+  render();
+}
+
+function reset(){
+  state=freshState();
+  history=[];
+  lastMove=null;
+  render();
+}
+
+function render(){
+  const big=document.getElementById('big');
+  big.innerHTML='';
+
+  for(let b=0;b<9;b++){
+    const mini=document.createElement('div');
+    mini.className='mini';
+    const won=state.winners[b];
+    if(won==='O') mini.classList.add('won-o');
+    if(won==='X') mini.classList.add('won-x');
+
+    const playable=isBoardPlayable(state,b);
+    if(playable) mini.classList.add('playable');
+    else if(!state.gameWinner && !won) mini.classList.add('dim');
+
+    for(let c=0;c<9;c++){
+      const cell=document.createElement('button');
+      cell.className='cell';
+      const mark=state.boards[b][c];
+      if(mark){
+        cell.classList.add(mark.toLowerCase());
+        cell.innerHTML=svgMark(mark,'mark');
+        if(lastMove && lastMove.b===b && lastMove.c===c) cell.classList.add('animate');
+        cell.disabled=true;
+      }else if(playable){
+        // ghost preview of current player
+        cell.innerHTML=`<span style="position:absolute;inset:14%" class="${state.player.toLowerCase()}">`+
+                       svgMark(state.player,'ghost mark')+`</span>`;
+        cell.classList.add(state.player.toLowerCase());
+        cell.addEventListener('click',()=>move(b,c));
+      }else{
+        cell.disabled=true;
+      }
+      mini.appendChild(cell);
+    }
+
+    // big overlay mark for a won mini board
+    if(won==='O'||won==='X'){
+      const overlay=document.createElement('div');
+      overlay.className='big-mark '+won.toLowerCase();
+      overlay.innerHTML=svgMark(won,'mark');
+      mini.appendChild(overlay);
+    }
+    big.appendChild(mini);
+  }
+
+  // status / turn indicator
+  const turn=document.getElementById('turn');
+  const label=document.getElementById('turnLabel');
+  turn.classList.remove('o','x','win');
+  const banner=document.getElementById('banner');
+
+  if(state.gameWinner){
+    turn.classList.add('win');
+    if(state.gameWinner==='D'){
+      label.textContent='Stalemate';
+      banner.innerHTML=`<div class="result draw">Draw — no winner</div>`;
+    }else{
+      label.textContent='Game over';
+      const name=state.gameWinner==='O'?'Circles (O)':'Crosses (X)';
+      banner.innerHTML=`<div class="result ${state.gameWinner.toLowerCase()}">${name} win!</div>`;
+    }
+  }else{
+    turn.classList.add(state.player.toLowerCase());
+    const who=state.player==='O'?'O':'X';
+    label.textContent=`${state.player==='O'?'Circle':'Cross'} to move — ${who}`;
+    banner.innerHTML = state.active===null
+      ? `<span style="font-size:13px;color:var(--ink-soft);font-family:'Spline Sans Mono'">Free move — play in any open board</span>`
+      : '';
+  }
+
+  document.getElementById('undo').disabled = history.length===0;
+}
+
+document.getElementById('reset').addEventListener('click',reset);
+document.getElementById('undo').addEventListener('click',undo);
+
+reset();
+</script>
+</body>
+</html>
